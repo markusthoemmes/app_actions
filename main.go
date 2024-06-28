@@ -2,11 +2,13 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -171,7 +173,12 @@ func (d *deployer) deploy(ctx context.Context) (*godo.App, error) {
 		}
 	} else {
 		gha.Group("build logs")
-		printLogs(ctx, buildLogsResp.HistoricURLs)
+		buildLogs, err := getLogs(ctx, buildLogsResp.HistoricURLs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get build logs: %w", err)
+		}
+		printLogs(buildLogs)
+		gha.SetOutput("build_logs", string(buildLogs))
 		gha.EndGroup()
 	}
 
@@ -183,7 +190,12 @@ func (d *deployer) deploy(ctx context.Context) (*godo.App, error) {
 		}
 	} else {
 		gha.Group("deploy logs")
-		printLogs(ctx, deployLogsResp.HistoricURLs)
+		deployLogs, err := getLogs(ctx, deployLogsResp.HistoricURLs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get deploy logs: %w", err)
+		}
+		printLogs(deployLogs)
+		gha.SetOutput("deploy_logs", string(deployLogs))
 		gha.EndGroup()
 	}
 
@@ -276,26 +288,35 @@ func isInTerminalPhase(d *godo.Deployment) bool {
 	return false
 }
 
-func printLogs(ctx context.Context, historicURLs []string) error {
+func getLogs(ctx context.Context, historicURLs []string) ([]byte, error) {
+	var buf bytes.Buffer
 	for _, historicURL := range historicURLs {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, historicURL, nil)
 		if err != nil {
-			return fmt.Errorf("failed to create log request: %w", err)
+			return nil, fmt.Errorf("failed to create log request: %w", err)
 		}
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
-			return fmt.Errorf("failed to get historic logs: %w", err)
+			return nil, fmt.Errorf("failed to get historic logs: %w", err)
 		}
-
-		scanner := bufio.NewScanner(resp.Body)
-		for scanner.Scan() {
-			gha.Infof(scanner.Text())
+		defer resp.Body.Close()
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read historic logs: %w", err)
 		}
-		if err := scanner.Err(); err != nil {
-			return fmt.Errorf("failed to read logs: %w", err)
-		}
+		buf.Write(body)
 	}
-	return nil
+	return buf.Bytes(), nil
+}
+
+func printLogs(logs []byte) {
+	scanner := bufio.NewScanner(bytes.NewReader(logs))
+	for scanner.Scan() {
+		gha.Infof(scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		gha.Fatalf("failed to read logs: %v", err)
+	}
 }
 
 func streamLogs(ctx context.Context, liveURL string) error {
