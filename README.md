@@ -1,4 +1,4 @@
-# app_action_v2
+# app_actions
 
 This is a complete rewrite of [`app_action`](https://github.com/digitalocean/app_action) with the goal of being more orchestratable in a broader GitHub Actions context.
 

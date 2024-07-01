@@ -1,4 +1,4 @@
-module github.com/digitalocean/app_action
+module github.com/digitalocean/app_actions/deploy
 
 go 1.22.4
 
