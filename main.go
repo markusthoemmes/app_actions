@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"time"
 
@@ -12,7 +15,12 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+const (
+	appSpecLocation = ".do/app.yaml"
+)
+
 func main() {
+	ctx := context.Background()
 	a := gha.New()
 
 	in, err := getInputs(a)
@@ -34,7 +42,7 @@ func main() {
 		printDeployLogs: in.printDeployLogs,
 		prPreview:       in.deployPRPreview,
 	}
-	app, err := d.deploy(context.Background())
+	app, err := d.deploy(ctx)
 	if err != nil {
 		a.Fatalf("failed to deploy: %v", err)
 	}
@@ -71,7 +79,7 @@ func (d *deployer) deploy(ctx context.Context) (*godo.App, error) {
 		}
 		spec = app.Spec
 	} else {
-		appSpec, err := os.ReadFile(".do/app.yaml")
+		appSpec, err := os.ReadFile(appSpecLocation)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get app spec content: %w", err)
 		}
@@ -126,7 +134,7 @@ func (d *deployer) deploy(ctx context.Context) (*godo.App, error) {
 
 		if d.printBuildLogs {
 			d.action.Group("build logs")
-			printLogs(d.action, buildLogs)
+			d.action.Infof(string(buildLogs))
 			d.action.EndGroup()
 		}
 	}
@@ -140,7 +148,7 @@ func (d *deployer) deploy(ctx context.Context) (*godo.App, error) {
 
 		if d.printDeployLogs {
 			d.action.Group("deploy logs")
-			printLogs(d.action, deployLogs)
+			d.action.Infof(string(deployLogs))
 			d.action.EndGroup()
 		}
 	}
@@ -200,6 +208,15 @@ func (d *deployer) waitForDeploymentTerminal(ctx context.Context, appID, deploym
 	return dep, nil
 }
 
+// isInTerminalPhase returns whether or not the given deployment is in a terminal phase.
+func isInTerminalPhase(d *godo.Deployment) bool {
+	switch d.GetPhase() {
+	case godo.DeploymentPhase_Active, godo.DeploymentPhase_Error, godo.DeploymentPhase_Canceled, godo.DeploymentPhase_Superseded:
+		return true
+	}
+	return false
+}
+
 // waitForAppLiveURL waits for the given app to have a non-empty live URL.
 func (d *deployer) waitForAppLiveURL(ctx context.Context, appID string) (*godo.App, error) {
 	t := time.NewTicker(2 * time.Second)
@@ -222,11 +239,34 @@ func (d *deployer) waitForAppLiveURL(ctx context.Context, appID string) (*godo.A
 	return a, nil
 }
 
-// isInTerminalPhase returns whether or not the given deployment is in a terminal phase.
-func isInTerminalPhase(d *godo.Deployment) bool {
-	switch d.GetPhase() {
-	case godo.DeploymentPhase_Active, godo.DeploymentPhase_Error, godo.DeploymentPhase_Canceled, godo.DeploymentPhase_Superseded:
-		return true
+// getLogs retrieves the logs from the given historic URLs.
+func (d *deployer) getLogs(ctx context.Context, appID, deploymentID string, typ godo.AppLogType) ([]byte, error) {
+	logsResp, resp, err := d.apps.GetLogs(ctx, appID, deploymentID, "", typ, true, -1)
+	if err != nil {
+		// Ignore if we get a 400, as this means the respective state was never reached or skipped.
+		if resp.StatusCode == http.StatusBadRequest {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("failed to get deploy logs: %w", err)
 	}
-	return false
+
+	var buf bytes.Buffer
+	for _, historicURL := range logsResp.HistoricURLs {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, historicURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create log request: %w", err)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get historic logs: %w", err)
+		}
+		defer resp.Body.Close()
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read historic logs: %w", err)
+		}
+		buf.Write(body)
+	}
+	return buf.Bytes(), nil
 }
