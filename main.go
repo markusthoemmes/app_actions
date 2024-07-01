@@ -23,6 +23,7 @@ func main() {
 	if err != nil {
 		a.Fatalf("failed to get inputs: %v", err)
 	}
+	// Mask the DO token to avoid accidentally leaking it.
 	a.AddMask(in.token)
 
 	ghCtx, err := a.Context()
@@ -51,6 +52,7 @@ func main() {
 	a.Infof("App is now live under URL: %s", app.GetLiveURL())
 }
 
+// deployer is responsible for deploying the app.
 type deployer struct {
 	action *gha.Action
 	apps   godo.AppsService
