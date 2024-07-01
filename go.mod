@@ -4,7 +4,6 @@ go 1.22.4
 
 require (
 	github.com/digitalocean/godo v1.118.0
-	github.com/gorilla/websocket v1.5.3
 	github.com/sethvargo/go-githubactions v1.2.0
 	sigs.k8s.io/yaml v1.4.0
 )

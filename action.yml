@@ -1,5 +1,5 @@
 name: DigitalOcean App Platform deployment
-description: Deploy application to DigitalOcean's App Platform or Update DOCR image in the DigitalOcean's App Platform.
+description: Deploy application to DigitalOcean's App Platform.
 branding:
   icon: 'upload-cloud'
   color: 'blue'
@@ -8,9 +8,29 @@ inputs:
   token:
     description: DigitalOcean Personal Access Token.(use https://docs.digitalocean.com/reference/api/create-personal-access-token/ for creating new token)
     required: true
-  deploy_preview:
+  app_name:
+    description: Name of the app to pull the spec from. The app must already exist.
+    required: true
+  print_build_logs:
+    description: Print build logs.
+    required: false
+    default: 'true'
+  print_deploy_logs:
+    description: Print deploy logs.
+    required: false
+    default: 'true'
+  deploy_pr_preview:
     description: Deploy to preview environment.
     required: false
+    default: 'false'
+
+outputs:
+  app:
+    description: A JSON representation of the entire app after the deployment.
+  build_logs:
+    description: The builds logs of the deployment.
+  deploy_logs:
+    description: The deploy logs of the deployment.
 
 runs:
   using: docker
