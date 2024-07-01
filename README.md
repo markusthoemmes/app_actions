@@ -20,6 +20,19 @@ This is a complete rewrite of [`app_action`](https://github.com/digitalocean/app
 
 ### Deploy an app after an image build
 
+With the following contents of `.do/app.yaml` in the repository:
+
+```yaml
+name: sample
+services:
+- name: sample
+  image:
+    registry_type: GHCR
+    registry: markusthoemmes
+    repository: app_action_example
+    digest: ${FOOBAR_DIGEST}
+```
+
 ```yaml
 name: Build, Push and Deploy a Docker Image
 
