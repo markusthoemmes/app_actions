@@ -21,7 +21,43 @@ This is a complete rewrite of [`app_action`](https://github.com/digitalocean/app
 ### Deploy an app after an image build
 
 ```yaml
-TODO
+name: Build, Push and Deploy a Docker Image
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-push-deploy-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Log in to the Container registry
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push Docker image
+        id: push
+        uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository }}:latest
+      - name: Deploy the app
+        id: deploy
+        uses: markusthoemmes/app_actions/deploy@main
+        env:
+          FOOBAR_DIGEST: ${{ steps.push.outputs.digest }}
+        with:
+          deploy_pr_preview: "true"
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
 ```
 
 ### Implementing Preview Apps
@@ -41,9 +77,9 @@ jobs:
     name: preview
     runs-on: ubuntu-latest
     steps:
-      - name: checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
-      - name: deploy the app
+      - name: Deploy the app
         id: deploy
         uses: markusthoemmes/app_actions/deploy@main
         with:
