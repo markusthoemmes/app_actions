@@ -29,31 +29,18 @@ func sanitizeSpecForPullRequestPreview(spec *godo.AppSpec, ghCtx *gha.GitHubCont
 	spec.Alerts = nil
 
 	// Override the reference of all relevant components to point to the PRs ref.
-	var githubRefs []*godo.GitHubSourceSpec
-	for _, svc := range spec.GetServices() {
-		if svc.GetGitHub() != nil {
-			githubRefs = append(githubRefs, svc.GetGitHub())
-		}
-	}
-	for _, worker := range spec.GetWorkers() {
-		if worker.GetGitHub() != nil {
-			githubRefs = append(githubRefs, worker.GetGitHub())
-		}
-	}
-	for _, job := range spec.GetJobs() {
-		if job.GetGitHub() != nil {
-			githubRefs = append(githubRefs, job.GetGitHub())
-		}
-	}
-	for _, ref := range githubRefs {
-		if ref.Repo != fmt.Sprintf("%s/%s", repoOwner, repo) {
+	//nolint:errcheck // We never return an error here.
+	godo.ForEachAppSpecComponent(spec, func(c godo.AppBuildableComponentSpec) error {
+		ref := c.GetGitHub()
+		if ref == nil || ref.Repo != fmt.Sprintf("%s/%s", repoOwner, repo) {
 			// Skip Github refs pointing to other repos.
-			continue
+			return nil
 		}
 		// We manually kick new deployments so we can watch their status better.
 		ref.DeployOnPush = false
 		ref.Branch = ghCtx.HeadRef
-	}
+		return nil
+	})
 }
 
 // generateAppName generates a unique app name based on the repoOwner, repo, and ref.

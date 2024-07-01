@@ -15,10 +15,6 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-const (
-	appSpecLocation = ".do/app.yaml"
-)
-
 func main() {
 	ctx := context.Background()
 	a := gha.New()
@@ -35,12 +31,10 @@ func main() {
 	}
 
 	d := &deployer{
-		action:          a,
-		apps:            godo.NewFromToken(in.token).Apps,
-		ghCtx:           ghCtx,
-		printBuildLogs:  in.printBuildLogs,
-		printDeployLogs: in.printDeployLogs,
-		prPreview:       in.deployPRPreview,
+		action: a,
+		apps:   godo.NewFromToken(in.token).Apps,
+		ghCtx:  ghCtx,
+		inputs: in,
 	}
 	app, err := d.deploy(ctx)
 	if err != nil {
@@ -56,30 +50,27 @@ func main() {
 }
 
 type deployer struct {
-	action          *gha.Action
-	apps            godo.AppsService
-	ghCtx           *gha.GitHubContext
-	specFromApp     string
-	printBuildLogs  bool
-	printDeployLogs bool
-	prPreview       bool
+	action *gha.Action
+	apps   godo.AppsService
+	ghCtx  *gha.GitHubContext
+	inputs inputs
 }
 
 // deploy deploys the app and waits for it to be live.
 func (d *deployer) deploy(ctx context.Context) (*godo.App, error) {
 	// First, fetch the app spec either from a pre-existing app or from the file system.
 	var spec *godo.AppSpec
-	if d.specFromApp != "" {
-		app, err := d.getAppWithName(ctx, d.specFromApp)
+	if d.inputs.appName != "" {
+		app, err := d.getAppWithName(ctx, d.inputs.appName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get app: %w", err)
 		}
 		if app == nil {
-			return nil, fmt.Errorf("app %q does not exist", d.specFromApp)
+			return nil, fmt.Errorf("app %q does not exist", d.inputs.appName)
 		}
 		spec = app.Spec
 	} else {
-		appSpec, err := os.ReadFile(appSpecLocation)
+		appSpec, err := os.ReadFile(d.inputs.appSpecLocation)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get app spec content: %w", err)
 		}
@@ -88,7 +79,7 @@ func (d *deployer) deploy(ctx context.Context) (*godo.App, error) {
 		}
 	}
 
-	if d.prPreview {
+	if d.inputs.deployPRPreview {
 		// If this is a PR preview, we need to sanitize the spec.
 		sanitizeSpecForPullRequestPreview(spec, d.ghCtx)
 	}
@@ -112,7 +103,7 @@ func (d *deployer) deploy(ctx context.Context) (*godo.App, error) {
 		}
 	}
 
-	ds, _, err := d.apps.ListDeployments(ctx, app.GetID(), &godo.ListOptions{})
+	ds, _, err := d.apps.ListDeployments(ctx, app.GetID(), &godo.ListOptions{PerPage: 1})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list deployments: %w", err)
 	}
@@ -132,7 +123,7 @@ func (d *deployer) deploy(ctx context.Context) (*godo.App, error) {
 	if len(buildLogs) > 0 {
 		d.action.SetOutput("build_logs", string(buildLogs))
 
-		if d.printBuildLogs {
+		if d.inputs.printBuildLogs {
 			d.action.Group("build logs")
 			d.action.Infof(string(buildLogs))
 			d.action.EndGroup()
@@ -146,7 +137,7 @@ func (d *deployer) deploy(ctx context.Context) (*godo.App, error) {
 	if len(deployLogs) > 0 {
 		d.action.SetOutput("deploy_logs", string(deployLogs))
 
-		if d.printDeployLogs {
+		if d.inputs.printDeployLogs {
 			d.action.Group("deploy logs")
 			d.action.Infof(string(deployLogs))
 			d.action.EndGroup()
@@ -167,6 +158,7 @@ func (d *deployer) deploy(ctx context.Context) (*godo.App, error) {
 
 // getAppWithName returns the app with the given name, or nil if it does not exist.
 func (d *deployer) getAppWithName(ctx context.Context, name string) (*godo.App, error) {
+	// TODO: Implement pagination.
 	apps, _, err := d.apps.List(ctx, &godo.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list apps: %w", err)

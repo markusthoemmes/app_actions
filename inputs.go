@@ -10,6 +10,7 @@ import (
 // inputs are the inputs for the action.
 type inputs struct {
 	token           string
+	appSpecLocation string
 	appName         string
 	printBuildLogs  bool
 	printDeployLogs bool
@@ -21,6 +22,7 @@ func getInputs(a *gha.Action) (inputs, error) {
 	var in inputs
 	for _, err := range []error{
 		inputAsString(a, "token", true, &in.token),
+		inputAsString(a, "app_spec_location", false, &in.appSpecLocation),
 		inputAsString(a, "app_name", false, &in.appName),
 		inputAsBool(a, "print_build_logs", true, &in.printBuildLogs),
 		inputAsBool(a, "print_deploy_logs", true, &in.printDeployLogs),
