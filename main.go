@@ -91,6 +91,10 @@ func (d *deployer) deploy(ctx context.Context) (*godo.App, error) {
 		}
 	}
 
+	if err := replaceImagesInSpec(spec); err != nil {
+		return nil, fmt.Errorf("failed to replace images in spec: %w", err)
+	}
+
 	// Either create or update the app.
 	app, err := d.getAppWithName(ctx, spec.GetName())
 	if err != nil {

@@ -29,8 +29,7 @@ func sanitizeSpecForPullRequestPreview(spec *godo.AppSpec, ghCtx *gha.GitHubCont
 	spec.Alerts = nil
 
 	// Override the reference of all relevant components to point to the PRs ref.
-	//nolint:errcheck // We never return an error here.
-	err := godo.ForEachAppSpecComponent(spec, func(c godo.AppBuildableComponentSpec) error {
+	if err := godo.ForEachAppSpecComponent(spec, func(c godo.AppBuildableComponentSpec) error {
 		ref := c.GetGitHub()
 		if ref == nil || ref.Repo != fmt.Sprintf("%s/%s", repoOwner, repo) {
 			// Skip Github refs pointing to other repos.
@@ -40,8 +39,7 @@ func sanitizeSpecForPullRequestPreview(spec *godo.AppSpec, ghCtx *gha.GitHubCont
 		ref.DeployOnPush = false
 		ref.Branch = ghCtx.HeadRef
 		return nil
-	})
-	if err != nil {
+	}); err != nil {
 		return fmt.Errorf("failed to sanitize buildable components: %w", err)
 	}
 	return nil
