@@ -39,4 +39,4 @@ outputs:
 
 runs:
   using: docker
-  image: docker://markusthoemmes/deploy-87162db58f16abd878f724ff828aeb7:latest
+  image: docker://markusthoemmes/deploy-87162db58f16abd878f724ff828aeb7f:latest

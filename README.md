@@ -2,6 +2,20 @@
 
 This is a complete rewrite of [`app_action`](https://github.com/digitalocean/app_action) with the goal of being more orchestratable in a broader GitHub Actions context.
 
+## Changes from v1
+
+### Breaking Changes
+
+- The `images` input is no longer supported. Instead, use env-var-substitution for an in-repository app spec or the `IMAGE_DIGEST_$component-name`/`IMAGE_TAG_$component-name` environment variables to change the respective fields of images in an app.
+
+### Other changes
+
+- Rewritten to use `godo` instead of shelling out to `doctl` for better error handling and overall control of the process.
+- Supports picking up an in-repository (or filesystem really) `app.yaml` (defaults to `.do/app.yaml`, configurable via the `app_spec_location` input) to create the app from instead of having to rely on an already existing app that's then downloaded (though that is still supported).
+- Prints the build and deploy logs into the Github Action log (configurable via `print_build_logs` and `print_deploy_logs`) and surfaces them as outputs `build_logs` and `deploy_logs` (fixes https://github.com/digitalocean/app_action/issues/73).
+- Provides the app's metadata as the output `app` (fixes https://github.com/digitalocean/app_action/issues/92).
+- Supports a "preview mode" geared towards orchestrating per-PR app previews. It can be enabled via `deploy_pr_review`, see the [Implementing Preview Apps](#implementing-preview-apps) example.
+
 ## Usage
 
 ### Deploy an app after an image build
@@ -31,7 +45,7 @@ jobs:
         uses: actions/checkout@v4
       - name: deploy the app
         id: deploy
-        uses: markusthoemmes/app_action_v2@main
+        uses: markusthoemmes/app_actions/deploy@main
         with:
           deploy_pr_preview: "true"
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
@@ -76,17 +90,3 @@ jobs:
               body: 'The app failed to be deployed. Logs can be found [here](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).'
             })
 ```
-
-## Changes from v1
-
-### Breaking Changes
-
-- The `images` input is no longer supported. Instead, use env-var-substitution for an in-repository app spec or the `IMAGE_DIGEST_$component-name`/`IMAGE_TAG_$component-name` environment variables to change the respective fields of images in an app.
-
-### Other changes
-
-- Rewritten to use `godo` instead of shelling out to `doctl` for better error handing and overall control of the process.
-- Supports picking up an in-repository (or filesystem really) `app.yaml` (defaults to `.do/app.yaml`).
-- Prints the build and deploy logs into the Github Action log and surfaces them as outputs (fixes https://github.com/digitalocean/app_action/issues/73).
-- Provides the app's metadata as an output (fixes https://github.com/digitalocean/app_action/issues/92).
-- Supports a "preview mode" geared towards orchestrating per-PR app previews.
