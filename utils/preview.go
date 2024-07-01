@@ -1,4 +1,4 @@
-package main
+package utils
 
 import (
 	"crypto/sha256"
@@ -10,17 +10,17 @@ import (
 	gha "github.com/sethvargo/go-githubactions"
 )
 
-// sanitizeSpecForPullRequestPreview modifies the given AppSpec to be suitable for a pull request preview.
+// SanitizeSpecForPullRequestPreview modifies the given AppSpec to be suitable for a pull request preview.
 // This includes:
 // - Setting a unique app name.
 // - Unsetting any domains.
 // - Unsetting any alerts.
 // - Setting the reference of all relevant components to point to the PRs ref.
-func sanitizeSpecForPullRequestPreview(spec *godo.AppSpec, ghCtx *gha.GitHubContext) error {
+func SanitizeSpecForPullRequestPreview(spec *godo.AppSpec, ghCtx *gha.GitHubContext) error {
 	repoOwner, repo := ghCtx.Repo()
 
 	// Override app name to something that identifies this PR.
-	spec.Name = generateAppName(repoOwner, repo, ghCtx.RefName)
+	spec.Name = GenerateAppName(repoOwner, repo, ghCtx.RefName)
 
 	// Unset any domains as those might collide with production apps.
 	spec.Domains = nil
@@ -45,8 +45,8 @@ func sanitizeSpecForPullRequestPreview(spec *godo.AppSpec, ghCtx *gha.GitHubCont
 	return nil
 }
 
-// generateAppName generates a unique app name based on the repoOwner, repo, and ref.
-func generateAppName(repoOwner, repo, ref string) string {
+// GenerateAppName generates a unique app name based on the repoOwner, repo, and ref.
+func GenerateAppName(repoOwner, repo, ref string) string {
 	baseName := fmt.Sprintf("%s-%s", repoOwner, repo)
 	baseName = strings.ToLower(baseName)
 	baseName = strings.NewReplacer(

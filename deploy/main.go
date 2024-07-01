@@ -10,6 +10,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/digitalocean/app_actions/utils"
 	"github.com/digitalocean/godo"
 	gha "github.com/sethvargo/go-githubactions"
 	"sigs.k8s.io/yaml"
@@ -65,7 +66,7 @@ func (d *deployer) deploy(ctx context.Context) (*godo.App, error) {
 	// First, fetch the app spec either from a pre-existing app or from the file system.
 	var spec *godo.AppSpec
 	if d.inputs.appName != "" {
-		app, err := d.getAppWithName(ctx, d.inputs.appName)
+		app, err := utils.FindAppByName(ctx, d.apps, d.inputs.appName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get app: %w", err)
 		}
@@ -86,7 +87,7 @@ func (d *deployer) deploy(ctx context.Context) (*godo.App, error) {
 
 	if d.inputs.deployPRPreview {
 		// If this is a PR preview, we need to sanitize the spec.
-		if err := sanitizeSpecForPullRequestPreview(spec, d.ghCtx); err != nil {
+		if err := utils.SanitizeSpecForPullRequestPreview(spec, d.ghCtx); err != nil {
 			return nil, fmt.Errorf("failed to sanitize spec for PR preview: %w", err)
 		}
 	}
@@ -96,7 +97,7 @@ func (d *deployer) deploy(ctx context.Context) (*godo.App, error) {
 	}
 
 	// Either create or update the app.
-	app, err := d.getAppWithName(ctx, spec.GetName())
+	app, err := utils.FindAppByName(ctx, d.apps, spec.GetName())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app: %w", err)
 	}
@@ -170,22 +171,6 @@ func (d *deployer) deploy(ctx context.Context) (*godo.App, error) {
 	}
 
 	return app, nil
-}
-
-// getAppWithName returns the app with the given name, or nil if it does not exist.
-func (d *deployer) getAppWithName(ctx context.Context, name string) (*godo.App, error) {
-	// TODO: Implement pagination.
-	apps, _, err := d.apps.List(ctx, &godo.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list apps: %w", err)
-	}
-
-	for _, a := range apps {
-		if a.GetSpec().GetName() == name {
-			return a, nil
-		}
-	}
-	return nil, nil
 }
 
 // waitForDeploymentTerminal waits for the given deployment to be in a terminal state.
