@@ -16,7 +16,7 @@ import (
 // - Unsetting any domains.
 // - Unsetting any alerts.
 // - Setting the reference of all relevant components to point to the PRs ref.
-func sanitizeSpecForPullRequestPreview(spec *godo.AppSpec, ghCtx *gha.GitHubContext) {
+func sanitizeSpecForPullRequestPreview(spec *godo.AppSpec, ghCtx *gha.GitHubContext) error {
 	repoOwner, repo := ghCtx.Repo()
 
 	// Override app name to something that identifies this PR.
@@ -30,7 +30,7 @@ func sanitizeSpecForPullRequestPreview(spec *godo.AppSpec, ghCtx *gha.GitHubCont
 
 	// Override the reference of all relevant components to point to the PRs ref.
 	//nolint:errcheck // We never return an error here.
-	godo.ForEachAppSpecComponent(spec, func(c godo.AppBuildableComponentSpec) error {
+	err := godo.ForEachAppSpecComponent(spec, func(c godo.AppBuildableComponentSpec) error {
 		ref := c.GetGitHub()
 		if ref == nil || ref.Repo != fmt.Sprintf("%s/%s", repoOwner, repo) {
 			// Skip Github refs pointing to other repos.
@@ -41,6 +41,10 @@ func sanitizeSpecForPullRequestPreview(spec *godo.AppSpec, ghCtx *gha.GitHubCont
 		ref.Branch = ghCtx.HeadRef
 		return nil
 	})
+	if err != nil {
+		return fmt.Errorf("failed to sanitize buildable components: %w", err)
+	}
+	return nil
 }
 
 // generateAppName generates a unique app name based on the repoOwner, repo, and ref.

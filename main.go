@@ -37,16 +37,18 @@ func main() {
 		inputs: in,
 	}
 	app, err := d.deploy(ctx)
+	if app != nil {
+		// Surface a JSON representation of the app regardless of success or failure.
+		appJSON, err := json.Marshal(app)
+		if err != nil {
+			a.Errorf("failed to marshal app: %v", err)
+		}
+		a.SetOutput("app", string(appJSON))
+	}
 	if err != nil {
 		a.Fatalf("failed to deploy: %v", err)
 	}
 	a.Infof("App is now live under URL: %s", app.GetLiveURL())
-
-	appJSON, err := json.Marshal(app)
-	if err != nil {
-		a.Fatalf("failed to marshal app: %v", err)
-	}
-	a.SetOutput("app", string(appJSON))
 }
 
 type deployer struct {
@@ -81,7 +83,9 @@ func (d *deployer) deploy(ctx context.Context) (*godo.App, error) {
 
 	if d.inputs.deployPRPreview {
 		// If this is a PR preview, we need to sanitize the spec.
-		sanitizeSpecForPullRequestPreview(spec, d.ghCtx)
+		if err := sanitizeSpecForPullRequestPreview(spec, d.ghCtx); err != nil {
+			return nil, fmt.Errorf("failed to sanitize spec for PR preview: %w", err)
+		}
 	}
 
 	// Either create or update the app.
@@ -145,7 +149,12 @@ func (d *deployer) deploy(ctx context.Context) (*godo.App, error) {
 	}
 
 	if dep.Phase != godo.DeploymentPhase_Active {
-		return nil, fmt.Errorf("deployment failed: %s", dep.Phase)
+		// Fetch the app to get the latest state before returning.
+		app, _, err := d.apps.Get(ctx, app.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get app after it failed: %w", err)
+		}
+		return app, fmt.Errorf("deployment failed: %s", dep.Phase)
 	}
 
 	app, err = d.waitForAppLiveURL(ctx, app.ID)
