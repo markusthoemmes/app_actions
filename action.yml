@@ -10,7 +10,8 @@ inputs:
     required: true
   app_name:
     description: Name of the app to pull the spec from. The app must already exist.
-    required: true
+    required: false
+    default: ''
   print_build_logs:
     description: Print build logs.
     required: false
