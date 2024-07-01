@@ -1,25 +1,25 @@
 name: DigitalOcean App Platform deployment
-description: Deploy application to DigitalOcean's App Platform.
+description: Deploy an application to DigitalOcean's App Platform.
 branding:
   icon: 'upload-cloud'
   color: 'blue'
 
 inputs:
   token:
-    description: DigitalOcean Personal Access Token.(use https://docs.digitalocean.com/reference/api/create-personal-access-token/ for creating new token)
+    description: DigitalOcean Personal Access Token. See https://docs.digitalocean.com/reference/api/create-personal-access-token/ for creating a new token.
     required: true
   app_name:
-    description: Name of the app to pull the spec from. The app must already exist.
+    description: Name of the app to pull the spec from. The app must already exist. If an app name is given, a potential in-repository app spec is ignored.
     required: false
     default: ''
   print_build_logs:
     description: Print build logs.
     required: false
-    default: 'true'
+    default: 'false'
   print_deploy_logs:
     description: Print deploy logs.
     required: false
-    default: 'true'
+    default: 'false'
   deploy_pr_preview:
     description: Deploy to preview environment.
     required: false
