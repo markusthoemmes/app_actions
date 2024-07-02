@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	gha "github.com/sethvargo/go-githubactions"
+	"github.com/stretchr/testify/require"
 )
 
 func TestInputAsString(t *testing.T) {
@@ -45,14 +46,12 @@ func TestInputAsString(t *testing.T) {
 			target := new(string)
 			err := InputAsString(a, test.input, test.required, target)
 			if err != nil && !test.err {
-				t.Fatalf("unexpected error: %v", err)
+				require.NoError(t, err)
 			}
 			if err == nil && test.err {
-				t.Fatalf("expected an error")
+				require.Error(t, err)
 			}
-			if *target != test.expected {
-				t.Errorf("expected %q, got %q", test.expected, *target)
-			}
+			require.Equal(t, test.expected, *target)
 		})
 	}
 }
@@ -103,14 +102,12 @@ func TestInputAsBool(t *testing.T) {
 			target := new(bool)
 			err := InputAsBool(a, test.input, test.required, target)
 			if err != nil && !test.err {
-				t.Fatalf("unexpected error: %v", err)
+				require.NoError(t, err)
 			}
 			if err == nil && test.err {
-				t.Fatalf("expected an error")
+				require.Error(t, err)
 			}
-			if *target != test.expected {
-				t.Errorf("expected %t, got %t", test.expected, *target)
-			}
+			require.Equal(t, test.expected, *target)
 		})
 	}
 }

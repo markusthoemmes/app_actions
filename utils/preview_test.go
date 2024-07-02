@@ -1,11 +1,11 @@
 package utils
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/digitalocean/godo"
 	gha "github.com/sethvargo/go-githubactions"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSanitizeSpecForPullRequestPreview(t *testing.T) {
@@ -44,6 +44,14 @@ func TestSanitizeSpecForPullRequestPreview(t *testing.T) {
 				DeployOnPush: true,
 			},
 		}},
+		Functions: []*godo.AppFunctionsSpec{{
+			Name: "function",
+			GitHub: &godo.GitHubSourceSpec{
+				Repo:         "foo/bar",
+				Branch:       "main",
+				DeployOnPush: true,
+			},
+		}},
 	}
 
 	ghCtx := &gha.GitHubContext{
@@ -52,9 +60,8 @@ func TestSanitizeSpecForPullRequestPreview(t *testing.T) {
 		HeadRef:    "feature-branch",
 	}
 
-	if err := SanitizeSpecForPullRequestPreview(spec, ghCtx); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	err := SanitizeSpecForPullRequestPreview(spec, ghCtx)
+	require.NoError(t, err)
 
 	expected := &godo.AppSpec{
 		Name: "foo-bar-3-merge-adb46530", // Name got generated.
@@ -69,7 +76,7 @@ func TestSanitizeSpecForPullRequestPreview(t *testing.T) {
 		}, {
 			Name: "web2",
 			GitHub: &godo.GitHubSourceSpec{
-				Repo:         "another/repo", // This one should not be touched.
+				Repo:         "another/repo", // No change.
 				Branch:       "main",
 				DeployOnPush: true,
 			},
@@ -90,11 +97,17 @@ func TestSanitizeSpecForPullRequestPreview(t *testing.T) {
 				DeployOnPush: false,            // DeployOnPush got set to false.
 			},
 		}},
+		Functions: []*godo.AppFunctionsSpec{{
+			Name: "function",
+			GitHub: &godo.GitHubSourceSpec{
+				Repo:         "foo/bar",
+				Branch:       "feature-branch", // Branch got updated.
+				DeployOnPush: false,            // DeployOnPush got set to false.
+			},
+		}},
 	}
 
-	if !reflect.DeepEqual(spec, expected) {
-		t.Errorf("expected %+v, got %+v", expected, spec)
-	}
+	require.Equal(t, expected, spec)
 }
 
 func TestGenerateAppName(t *testing.T) {
@@ -127,9 +140,7 @@ func TestGenerateAppName(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			got := GenerateAppName(test.repoOwner, test.repo, test.ref)
-			if got != test.expected {
-				t.Errorf("expected %q, got %q", test.expected, got)
-			}
+			require.Equal(t, test.expected, got)
 		})
 	}
 }

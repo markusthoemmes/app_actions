@@ -17,10 +17,10 @@ func replaceImagesInSpec(spec *godo.AppSpec) error {
 		}
 
 		if digest := os.Getenv("IMAGE_DIGEST_" + componentNameToEnvVar(c.GetName())); digest != "" {
+			image.Tag = ""
 			image.Digest = digest
-		}
-
-		if tag := os.Getenv("IMAGE_TAG_" + componentNameToEnvVar(c.GetName())); tag != "" {
+		} else if tag := os.Getenv("IMAGE_TAG_" + componentNameToEnvVar(c.GetName())); tag != "" {
+			image.Digest = ""
 			image.Tag = tag
 		}
 		return nil

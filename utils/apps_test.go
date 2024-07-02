@@ -2,57 +2,46 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/digitalocean/godo"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFindAppByName(t *testing.T) {
 	app1 := &godo.App{Spec: &godo.AppSpec{Name: "app1"}}
 	app2 := &godo.App{Spec: &godo.AppSpec{Name: "app2"}}
 
-	tests := []struct {
-		name     string
-		apps     []*godo.App
-		appName  string
-		expected *godo.App
-	}{{
-		name:     "app1",
-		apps:     []*godo.App{app1, app2},
-		appName:  "app1",
-		expected: app1,
-	}, {
-		name:     "app2",
-		apps:     []*godo.App{app1, app2},
-		appName:  "app2",
-		expected: app2,
-	}, {
-		name:     "not found",
-		apps:     []*godo.App{app1, app2},
-		appName:  "app3",
-		expected: nil,
-	}}
+	as := &mockedAppsService{}
+	as.On("List", mock.Anything, mock.Anything).Return([]*godo.App{app1, app2}, &godo.Response{}, nil).Times(3)
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			do := &fakeAppsService{apps: test.apps}
-			app, err := FindAppByName(context.Background(), do, test.appName)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if app != test.expected {
-				t.Errorf("expected app %v, got %v", test.expected, app)
-			}
-		})
-	}
+	app, err := FindAppByName(context.Background(), as, "app1")
+	require.NoError(t, err)
+	require.Equal(t, app1, app)
+
+	app, err = FindAppByName(context.Background(), as, "app2")
+	require.NoError(t, err)
+	require.Equal(t, app2, app)
+
+	app, err = FindAppByName(context.Background(), as, "app3")
+	require.NoError(t, err)
+	require.Nil(t, app)
+
+	as.On("List", mock.Anything, mock.Anything).Return([]*godo.App{}, &godo.Response{}, errors.New("an error")).Once()
+	_, err = FindAppByName(context.Background(), as, "app4")
+	require.Error(t, err)
+
+	as.AssertExpectations(t)
 }
 
-type fakeAppsService struct {
+type mockedAppsService struct {
 	godo.AppsService
-	apps      []*godo.App
-	listError error
+	mock.Mock
 }
 
-func (f *fakeAppsService) List(ctx context.Context, opt *godo.ListOptions) ([]*godo.App, *godo.Response, error) {
-	return f.apps, nil, f.listError
+func (m *mockedAppsService) List(ctx context.Context, opt *godo.ListOptions) ([]*godo.App, *godo.Response, error) {
+	args := m.Called(ctx, opt)
+	return args.Get(0).([]*godo.App), args.Get(1).(*godo.Response), args.Error(2)
 }

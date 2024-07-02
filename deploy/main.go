@@ -27,18 +27,31 @@ func main() {
 	// Mask the DO token to avoid accidentally leaking it.
 	a.AddMask(in.token)
 
-	ghCtx, err := a.Context()
-	if err != nil {
-		a.Fatalf("failed to get GitHub context: %v", err)
+	d := &deployer{
+		action:     a,
+		apps:       godo.NewFromToken(in.token).Apps,
+		httpClient: http.DefaultClient,
+		inputs:     in,
 	}
 
-	d := &deployer{
-		action: a,
-		apps:   godo.NewFromToken(in.token).Apps,
-		ghCtx:  ghCtx,
-		inputs: in,
+	spec, err := d.createSpec(ctx)
+	if err != nil {
+		a.Fatalf("failed to create spec: %v", err)
 	}
-	app, err := d.deploy(ctx)
+
+	if in.deployPRPreview {
+		ghCtx, err := a.Context()
+		if err != nil {
+			a.Fatalf("failed to get GitHub context: %v", err)
+		}
+
+		// If this is a PR preview, we need to sanitize the spec.
+		if err := utils.SanitizeSpecForPullRequestPreview(spec, ghCtx); err != nil {
+			a.Fatalf("failed to sanitize spec for PR preview: %v", err)
+		}
+	}
+
+	app, err := d.deploy(ctx, spec)
 	if app != nil {
 		// Surface a JSON representation of the app regardless of success or failure.
 		appJSON, err := json.Marshal(app)
@@ -55,14 +68,13 @@ func main() {
 
 // deployer is responsible for deploying the app.
 type deployer struct {
-	action *gha.Action
-	apps   godo.AppsService
-	ghCtx  *gha.GitHubContext
-	inputs inputs
+	action     *gha.Action
+	apps       godo.AppsService
+	httpClient *http.Client
+	inputs     inputs
 }
 
-// deploy deploys the app and waits for it to be live.
-func (d *deployer) deploy(ctx context.Context) (*godo.App, error) {
+func (d *deployer) createSpec(ctx context.Context) (*godo.AppSpec, error) {
 	// First, fetch the app spec either from a pre-existing app or from the file system.
 	var spec *godo.AppSpec
 	if d.inputs.appName != "" {
@@ -85,24 +97,21 @@ func (d *deployer) deploy(ctx context.Context) (*godo.App, error) {
 		}
 	}
 
-	if d.inputs.deployPRPreview {
-		// If this is a PR preview, we need to sanitize the spec.
-		if err := utils.SanitizeSpecForPullRequestPreview(spec, d.ghCtx); err != nil {
-			return nil, fmt.Errorf("failed to sanitize spec for PR preview: %w", err)
-		}
-	}
-
 	if err := replaceImagesInSpec(spec); err != nil {
 		return nil, fmt.Errorf("failed to replace images in spec: %w", err)
 	}
+	return spec, nil
+}
 
+// deploy deploys the app and waits for it to be live.
+func (d *deployer) deploy(ctx context.Context, spec *godo.AppSpec) (*godo.App, error) {
 	// Either create or update the app.
 	app, err := utils.FindAppByName(ctx, d.apps, spec.GetName())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app: %w", err)
 	}
 	if app == nil {
-		d.action.Infof("app %q did not exist yet, creating...", spec.Name)
+		d.action.Infof("app %q does not exist yet, creating...", spec.Name)
 		app, _, err = d.apps.Create(ctx, &godo.AppCreateRequest{Spec: spec})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create app: %w", err)
@@ -118,6 +127,9 @@ func (d *deployer) deploy(ctx context.Context) (*godo.App, error) {
 	ds, _, err := d.apps.ListDeployments(ctx, app.GetID(), &godo.ListOptions{PerPage: 1})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list deployments: %w", err)
+	}
+	if len(ds) == 0 {
+		return nil, fmt.Errorf("expected a deployment right after creating/updating the app, but got none")
 	}
 	// The latest deployment is the deployment we just created.
 	deploymentID := ds[0].GetID()
@@ -180,7 +192,7 @@ func (d *deployer) waitForDeploymentTerminal(ctx context.Context, appID, deploym
 
 	var dep *godo.Deployment
 	var currentPhase godo.DeploymentPhase
-	for !isInTerminalPhase(dep) {
+	for {
 		var err error
 		dep, _, err = d.apps.GetDeployment(ctx, appID, deploymentID)
 		if err != nil {
@@ -192,13 +204,16 @@ func (d *deployer) waitForDeploymentTerminal(ctx context.Context, appID, deploym
 			currentPhase = dep.GetPhase()
 		}
 
+		if isInTerminalPhase(dep) {
+			return dep, nil
+		}
+
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-t.C:
 		}
 	}
-	return dep, nil
 }
 
 // isInTerminalPhase returns whether or not the given deployment is in a terminal phase.
@@ -216,11 +231,15 @@ func (d *deployer) waitForAppLiveURL(ctx context.Context, appID string) (*godo.A
 	defer t.Stop()
 
 	var a *godo.App
-	for a.GetLiveURL() == "" {
+	for {
 		var err error
 		a, _, err = d.apps.Get(ctx, appID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get deployment: %w", err)
+		}
+
+		if a.GetLiveURL() != "" {
+			return a, nil
 		}
 
 		select {
@@ -229,7 +248,6 @@ func (d *deployer) waitForAppLiveURL(ctx context.Context, appID string) (*godo.A
 		case <-t.C:
 		}
 	}
-	return a, nil
 }
 
 // getLogs retrieves the logs from the given historic URLs.
@@ -250,7 +268,7 @@ func (d *deployer) getLogs(ctx context.Context, appID, deploymentID string, typ 
 		if err != nil {
 			return nil, fmt.Errorf("failed to create log request: %w", err)
 		}
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := d.httpClient.Do(req)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get historic logs: %w", err)
 		}
