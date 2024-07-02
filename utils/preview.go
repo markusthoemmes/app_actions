@@ -30,6 +30,7 @@ func SanitizeSpecForPullRequestPreview(spec *godo.AppSpec, ghCtx *gha.GitHubCont
 
 	// Override the reference of all relevant components to point to the PRs ref.
 	if err := godo.ForEachAppSpecComponent(spec, func(c godo.AppBuildableComponentSpec) error {
+		// TODO: Should this also deal with raw Git sources?
 		ref := c.GetGitHub()
 		if ref == nil || ref.Repo != fmt.Sprintf("%s/%s", repoOwner, repo) {
 			// Skip Github refs pointing to other repos.
@@ -47,7 +48,7 @@ func SanitizeSpecForPullRequestPreview(spec *godo.AppSpec, ghCtx *gha.GitHubCont
 
 // GenerateAppName generates a unique app name based on the repoOwner, repo, and ref.
 func GenerateAppName(repoOwner, repo, ref string) string {
-	baseName := fmt.Sprintf("%s-%s", repoOwner, repo)
+	baseName := fmt.Sprintf("%s-%s-%s", repoOwner, repo, ref)
 	baseName = strings.ToLower(baseName)
 	baseName = strings.NewReplacer(
 		"/", "-", // Replace slashes.
@@ -56,9 +57,8 @@ func GenerateAppName(repoOwner, repo, ref string) string {
 	).Replace(baseName)
 
 	// Generate a hash from the unique enumeration of repoOwner, repo, and ref.
-	unique := fmt.Sprintf("%s-%s-%s", repoOwner, repo, ref)
 	hasher := sha256.New()
-	hasher.Write([]byte(unique))
+	hasher.Write([]byte(baseName))
 	suffix := "-" + hex.EncodeToString(hasher.Sum(nil))[:8]
 
 	// App names must be at most 32 characters.

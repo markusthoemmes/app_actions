@@ -20,8 +20,14 @@ func InputAsString(a *gha.Action, input string, required bool, target *string) e
 // InputAsBool parses the input as a boolean and sets the target.
 func InputAsBool(a *gha.Action, input string, required bool, target *bool) error {
 	str := a.GetInput(input)
-	if str == "" && required {
-		return fmt.Errorf("input %q is required", input)
+	if str == "" {
+		if required {
+			return fmt.Errorf("input %q is required", input)
+		}
+
+		// If the input is not required, we default to false.
+		*target = false
+		return nil
 	}
 	val, err := strconv.ParseBool(str)
 	if err != nil {

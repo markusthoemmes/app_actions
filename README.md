@@ -6,12 +6,12 @@ This is a complete rewrite of [`app_action`](https://github.com/digitalocean/app
 
 ### Breaking Changes
 
-- The `images` input is no longer supported. Instead, use env-var-substitution for an in-repository app spec or the `IMAGE_DIGEST_$component-name`/`IMAGE_TAG_$component-name` environment variables to change the respective fields of images in an app.
+- The `images` input is no longer supported. Instead, use env-var-substitution for an in-repository app spec or the `IMAGE_DIGEST_$component-name`/`IMAGE_TAG_$component-name` environment variables to change the respective fields of images in an existing app.
 
 ### Other changes
 
 - Rewritten to use `godo` instead of shelling out to `doctl` for better error handling and overall control of the process.
-- Supports picking up an in-repository (or filesystem really) `app.yaml` (defaults to `.do/app.yaml`, configurable via the `app_spec_location` input) to create the app from instead of having to rely on an already existing app that's then downloaded (though that is still supported). The in-filesystem app spec can also be templated with environment variables automatically (see examples below).
+- Supports picking up an in-repository (or filesystem really) `app.yaml` (defaults to `.do/app.yaml`, configurable via the `app_spec_location` input) to create the app from instead of having to rely on an already existing app that's then downloaded (though that is still supported). The in-filesystem app spec can also be templated with environment variables automatically (see examples below) (fixes https://github.com/digitalocean/app_action/issues/106).
 - Prints the build and deploy logs into the Github Action log (configurable via `print_build_logs` and `print_deploy_logs`) and surfaces them as outputs `build_logs` and `deploy_logs` (fixes https://github.com/digitalocean/app_action/issues/73).
 - Provides the app's metadata as the output `app` (fixes https://github.com/digitalocean/app_action/issues/92).
 - Supports a "preview mode" geared towards orchestrating per-PR app previews. It can be enabled via `deploy_pr_review`, see the [Implementing Preview Apps](#implementing-preview-apps) example.
