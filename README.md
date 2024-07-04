@@ -33,6 +33,8 @@ services:
     digest: ${FOOBAR_DIGEST}
 ```
 
+The following action builds a new image from a Dockerfile in the repository and deploys the respective app from it. The built image is deployed from its digest, avoiding any inconsistencies around mutable tags and guaranteeing that **exactly** this image is deployed.
+
 ```yaml
 name: Build, Push and Deploy a Docker Image
 
@@ -75,6 +77,10 @@ jobs:
 
 ### Implementing Preview Apps
 
+With the following 2 actions, you can implement a "Preview Apps" feature, that provide a per-PR app to check if the deployment **would** work. If the deployment succeeds, a comment is posted with the live URL of the app. If the deployment fails, a link to the respective action run is posted alongside the build and deployment logs for quick debugging.
+
+Once the PR is closed or merged, the respective app is deleted again.
+
 ```yaml
 name: App Platform Preview
 
@@ -109,7 +115,17 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `:rocket: :rocket: :rocket: The app was successfully deployed at ${{ fromJson(steps.deploy.outputs.app).live_url }}.
+              body: `:rocket: :rocket: :rocket: The app was successfully deployed at ${{ fromJson(steps.deploy.outputs.app).live_url }}.`
+            })
+      - uses: actions/github-script@v7
+        if: failure()
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `The app failed to be deployed. Logs can be found [here](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).
 
               ## Logs
               <details>
@@ -128,14 +144,23 @@ jobs:
               \`\`\`
               </details>`
             })
-      - uses: actions/github-script@v7
-        if: failure()
+```
+
+```
+name: Delete Preview
+
+on:
+  pull_request:
+    types: [ closed ]
+
+jobs:
+  closed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: delete preview app
+        uses: markusthoemmes/app_actions/delete@main
         with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: 'The app failed to be deployed. Logs can be found [here](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).'
-            })
+          from_pr_preview: "true"
+          ignore_not_found: "true"
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
 ```
