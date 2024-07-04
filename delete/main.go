@@ -50,6 +50,7 @@ func main() {
 			}
 			a.Fatalf("app %q not found", appName)
 		}
+		appID = app.ID
 	}
 
 	if resp, err := do.Delete(ctx, appID); err != nil {
