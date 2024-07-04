@@ -146,7 +146,7 @@ jobs:
             })
 ```
 
-```
+```yaml
 name: Delete Preview
 
 on:
