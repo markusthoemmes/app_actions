@@ -20,6 +20,10 @@ inputs:
     description: Use this if the app was deployed as a PR preview. The app name will be derived from the PR number.
     required: false
     default: 'false'
+  ignore_not_found:
+    description: Ignore if the app is not found.
+    required: false
+    default: 'false'
 
 runs:
   using: docker

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/digitalocean/app_actions/utils"
 	"github.com/digitalocean/godo"
@@ -43,11 +44,19 @@ func main() {
 			a.Fatalf("failed to find app: %v", err)
 		}
 		if app == nil {
+			if in.ignoreNotFound {
+				a.Infof("app %q not found, ignoring", appName)
+				return
+			}
 			a.Fatalf("app %q not found", appName)
 		}
 	}
 
-	if _, err := do.Delete(ctx, appID); err != nil {
+	if resp, err := do.Delete(ctx, appID); err != nil {
+		if resp.StatusCode == http.StatusNotFound && in.ignoreNotFound {
+			a.Infof("app %q not found, ignoring", appID)
+			return
+		}
 		a.Fatalf("failed to delete app: %v", err)
 	}
 }

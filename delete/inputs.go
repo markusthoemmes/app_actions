@@ -7,10 +7,11 @@ import (
 
 // inputs are the inputs for the action.
 type inputs struct {
-	token         string
-	appName       string
-	appID         string
-	fromPRPreview bool
+	token          string
+	appName        string
+	appID          string
+	fromPRPreview  bool
+	ignoreNotFound bool
 }
 
 // getInputs gets the inputs for the action.
@@ -21,6 +22,7 @@ func getInputs(a *gha.Action) (inputs, error) {
 		utils.InputAsString(a, "app_name", false, &in.appName),
 		utils.InputAsString(a, "app_id", false, &in.appID),
 		utils.InputAsBool(a, "from_pr_preview", false, &in.fromPRPreview),
+		utils.InputAsBool(a, "ignore_not_found", false, &in.ignoreNotFound),
 	} {
 		if err != nil {
 			return in, err
