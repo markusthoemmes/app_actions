@@ -25,7 +25,7 @@ inputs:
     required: false
     default: 'false'
   deploy_pr_preview:
-    description: Deploy to preview environment.
+    description: Deploy the app as a PR preview. The app name will be derived from the PR, the app spec will be mangled to exclude conflicting configuration like domains and alerts and all Github references to the current repository will be updated to point to the PR's branch.
     required: false
     default: 'false'
 
@@ -39,4 +39,4 @@ outputs:
 
 runs:
   using: docker
-  image: docker://markusthoemmes/deploy-87162db58f16abd878f724ff828aeb7f:latest
+  image: docker://ghcr.io/markusthoemmes/app_actions/deploy@sha256:e23223acedd18cb411233ca0493e8c77b6184755ac72ca45cb9f36ebb64468c3
