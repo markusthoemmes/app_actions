@@ -1,22 +1,44 @@
-# app_actions
+# Deploy a [DigitalOcean App Platform](https://www.digitalocean.com/products/app-platform/) app using GitHub Actions.
 
-This is a complete rewrite of [`app_action`](https://github.com/digitalocean/app_action) with the goal of being more orchestratable in a broader GitHub Actions context.
+Deploy an app from source (including the configuration) on commit, while allowing you to run tests or perform other operations as part of your CI/CD pipeline.
 
-## Changes from v1
-
-### Breaking Changes
-
-- The `images` input is no longer supported. Instead, use env-var-substitution for an in-repository app spec or the `IMAGE_DIGEST_$component-name`/`IMAGE_TAG_$component-name` environment variables to change the respective fields of images in an existing app.
-
-### Other changes
-
-- Rewritten to use `godo` instead of shelling out to `doctl` for better error handling and overall control of the process.
-- Supports picking up an in-repository (or filesystem really) `app.yaml` (defaults to `.do/app.yaml`, configurable via the `app_spec_location` input) to create the app from instead of having to rely on an already existing app that's then downloaded (though that is still supported). The in-filesystem app spec can also be templated with environment variables automatically (see examples below) (fixes https://github.com/digitalocean/app_action/issues/106).
-- Prints the build and deploy logs into the Github Action log (configurable via `print_build_logs` and `print_deploy_logs`) and surfaces them as outputs `build_logs` and `deploy_logs` (fixes https://github.com/digitalocean/app_action/issues/73).
+- Supports picking up an in-repository (or filesystem really) `app.yaml` (defaults to `.do/app.yaml`, configurable via the `app_spec_location` input) to create the app from instead of having to rely on an already existing app that's then downloaded (though that is still supported). The in-filesystem app spec can also be templated with environment variables automatically (see examples below).
+- Prints the build and deploy logs into the Github Action log on demand (configurable via `print_build_logs` and `print_deploy_logs`) and surfaces them as outputs `build_logs` and `deploy_logs`.
 - Provides the app's metadata as the output `app` (fixes https://github.com/digitalocean/app_action/issues/92).
 - Supports a "preview mode" geared towards orchestrating per-PR app previews. It can be enabled via `deploy_pr_review`, see the [Implementing Preview Apps](#implementing-preview-apps) example.
 
+## Documentation
+
+### `deploy` action
+
+#### Inputs
+
+- `token`: DigitalOcean Personal Access Token. See https://docs.digitalocean.com/reference/api/create-personal-access-token/ for creating a new token.
+- `app_spec_location`: Location of the app spec file. Defaults to `.do/app.yaml`.
+- `app_name`: Name of the app to pull the spec from. The app must already exist. If an app name is given, a potential in-repository app spec is ignored.
+- `print_build_logs`: Print build logs. Defaults to `false`.
+- `print_deploy_logs`: Print deploy logs. Defaults to `false`.
+- `deploy_pr_preview`: Deploy the app as a PR preview. The app name will be derived from the PR, the app spec will be mangled to exclude conflicting configuration like domains and alerts and all Github references to the current repository will be updated to point to the PR's branch. Defaults to `false`.
+
+#### Outputs
+
+- `app`: A JSON representation of the entire app after the deployment.
+- `build_logs`: The builds logs of the deployment.
+- `deploy_logs`: The deploy logs of the deployment.
+
+### `delete` action
+
+#### Inputs
+
+- `token`: DigitalOcean Personal Access Token. See https://docs.digitalocean.com/reference/api/create-personal-access-token/ for creating a new token.
+- `app_id`: ID of the app to delete.
+- `app_name`: Name of the app to delete.
+- `from_pr_preview`: Use this if the app was deployed as a PR preview. The app name will be derived from the PR and.
+- `ignore_not_found`: Ignore if the app is not found.
+
 ## Usage
+
+As a prerequisite for all examples, you'll need a `DIGITALOCEAN_ACCESS_TOKEN`[secret](https://docs.github.com/en/actions/reference/encrypted-secrets#creating-encrypted-secrets-for-a-repository) in the respective repository. If not already done, get a DigitalOcean Personal Access token by following this [instructions](https://docs.digitalocean.com/reference/api/create-personal-access-token/) and declare it as that secret in the repository you're working with.
 
 ### Deploy an app after an image build
 
@@ -164,3 +186,23 @@ jobs:
           ignore_not_found: "true"
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
 ```
+
+## Note for handling container images images
+
+It is strongly suggested to use image digests to identify a specific image like in the example above. If that is not possible, it is strongly suggested to use a unique and descriptive tag for the respective image (not `latest`).
+
+## Upgrade from `app_action`
+
+The old `app_action` is no longer under development. To upgrade, references need to be switched from `digitalocean/app_action` to `digitalocean/app_actions/deploy`.
+
+The new action does not support the `images` input from the old action. For in-repository app specs, it's suggested to use env-var-substitution as in the example above. If the spec of an existing app should be updated via the backwards-compatible `app_name` input, the `IMAGE_DIGEST_$component-name`/`IMAGE_TAG_$component-name` environment variables can be used to change the respective fields of the image reference.
+
+## Resources to know more about DigitalOcean App Platform App Spec
+
+- [App Platform Guided App Spec Declaration](https://www.digitalocean.com/community/tech_talks/defining-your-app-specification-on-digitalocean-app-platform)
+- [App Platform App Spec Blog](https://docs.digitalocean.com/products/app-platform/reference/app-spec/)
+- [App Platform App Spec Components](https://www.digitalocean.com/blog/build-component-based-apps-with-digitalocean-app-platform/)
+
+## License
+
+This GitHub Action and associated scripts and documentation in this project are released under the [MIT License](LICENSE).

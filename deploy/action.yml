@@ -9,7 +9,7 @@ inputs:
     description: DigitalOcean Personal Access Token. See https://docs.digitalocean.com/reference/api/create-personal-access-token/ for creating a new token.
     required: true
   app_spec_location:
-    description: Location of the app spec file.
+    description: Location of the app spec file. Mutually exclusive with `app_name`.
     required: false
     default: '.do/app.yaml'
   app_name:
