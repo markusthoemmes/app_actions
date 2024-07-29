@@ -187,7 +187,7 @@ jobs:
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
 ```
 
-## Note for handling container images images
+## Note for handling container images
 
 It is strongly suggested to use image digests to identify a specific image like in the example above. If that is not possible, it is strongly suggested to use a unique and descriptive tag for the respective image (not `latest`).
 
