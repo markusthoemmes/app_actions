@@ -15,7 +15,8 @@ func TestFindAppByName(t *testing.T) {
 	app2 := &godo.App{Spec: &godo.AppSpec{Name: "app2"}}
 
 	as := &mockedAppsService{}
-	as.On("List", mock.Anything, mock.Anything).Return([]*godo.App{app1, app2}, &godo.Response{}, nil).Times(3)
+	as.On("List", mock.Anything, &godo.ListOptions{Page: 0}).Return([]*godo.App{app1}, &godo.Response{Links: &godo.Links{Pages: &godo.Pages{Next: "2"}}}, nil).Times(3)
+	as.On("List", mock.Anything, &godo.ListOptions{Page: 2}).Return([]*godo.App{app2}, &godo.Response{}, nil).Times(2)
 
 	app, err := FindAppByName(context.Background(), as, "app1")
 	require.NoError(t, err)
