@@ -50,7 +50,7 @@ services:
 - name: sample
   image:
     registry_type: GHCR
-    registry: markusthoemmes
+    registry: digitalocean
     repository: app_action_example
     digest: ${FOOBAR_DIGEST}
 ```
@@ -89,7 +89,7 @@ jobs:
           tags: ghcr.io/${{ github.repository }}:latest
       - name: Deploy the app
         id: deploy
-        uses: markusthoemmes/app_actions/deploy@main
+        uses: digitalocean/app_actions/deploy@main
         env:
           FOOBAR_DIGEST: ${{ steps.push.outputs.digest }}
         with:
@@ -122,7 +122,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Deploy the app
         id: deploy
-        uses: markusthoemmes/app_actions/deploy@main
+        uses: digitalocean/app_actions/deploy@main
         with:
           deploy_pr_preview: "true"
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
@@ -180,7 +180,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: delete preview app
-        uses: markusthoemmes/app_actions/delete@main
+        uses: digitalocean/app_actions/delete@main
         with:
           from_pr_preview: "true"
           ignore_not_found: "true"
