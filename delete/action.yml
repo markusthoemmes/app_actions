@@ -27,4 +27,4 @@ inputs:
 
 runs:
   using: docker
-  image: docker://markusthoemmes/delete-e2e1c2b5295bda5e729393ae2bdc9445:latest
+  image: docker://ghcr.io/markusthoemmes/app_actions/delete-e2e1c2b5295bda5e729393ae2bdc9445@sha256:a396667ad5e71f8940989ac799b4c22f42747636f14046b60720ef2f46338333
