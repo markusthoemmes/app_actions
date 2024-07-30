@@ -7,6 +7,10 @@ Deploy an app from source (including the configuration) on commit, while allowin
 - Provides the app's metadata as the output `app`.
 - Supports a "preview mode" geared towards orchestrating per-PR app previews. It can be enabled via `deploy_pr_review`, see the [Implementing Preview Apps](#implementing-preview-apps) example.
 
+## Support
+
+If you require assistance or have a feature idea, please create a support ticket at the [official DigitalOcean Support](https://cloudsupport.digitalocean.com/s/).
+
 ## Documentation
 
 ### `deploy` action
@@ -40,7 +44,39 @@ Deploy an app from source (including the configuration) on commit, while allowin
 
 As a prerequisite for all examples, you'll need a `DIGITALOCEAN_ACCESS_TOKEN`[secret](https://docs.github.com/en/actions/reference/encrypted-secrets#creating-encrypted-secrets-for-a-repository) in the respective repository. If not already done, get a DigitalOcean Personal Access token by following this [instructions](https://docs.digitalocean.com/reference/api/create-personal-access-token/) and declare it as that secret in the repository you're working with.
 
-### Deploy an app after an image build
+### Deploy an app
+
+With the following contents of `.do/app.yaml` in the repository:
+
+```yaml
+name: sample
+services:
+- name: sample
+  github:
+    branch: main
+    repo: digitalocean/app_action_example
+```
+
+The following action deploys the app whenever a new commit is pushed to the main branch. Note that `deploy_on_push` is **not** used here, since the Github Action is the driving force behind the deployment. Also note that updates to `.do/app.yaml` will automatically be applied to the app.
+
+```yaml
+name: Update App
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-push-deploy-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Deploy the app
+        uses: digitalocean/app_actions/deploy@main
+```
+
+### Deploy an app with a prebuilt image
 
 With the following contents of `.do/app.yaml` in the repository:
 
@@ -52,16 +88,16 @@ services:
     registry_type: GHCR
     registry: digitalocean
     repository: app_action_example
-    digest: ${FOOBAR_DIGEST}
+    digest: ${SAMPLE_DIGEST}
 ```
 
-The following action builds a new image from a Dockerfile in the repository and deploys the respective app from it. The built image is deployed from its digest, avoiding any inconsistencies around mutable tags and guaranteeing that **exactly** this image is deployed.
+The following action builds a new image from a Dockerfile in the repository and deploys the respective app from it. The build in App Platform is automatically bypassed. The built image is deployed from its digest, avoiding any inconsistencies around mutable tags and guaranteeing that **exactly** this image is deployed.
 
 ```yaml
 name: Build, Push and Deploy a Docker Image
 
 on:
-  pull_request:
+  push:
     branches: [main]
 
 jobs:
@@ -88,16 +124,14 @@ jobs:
           push: true
           tags: ghcr.io/${{ github.repository }}:latest
       - name: Deploy the app
-        id: deploy
         uses: digitalocean/app_actions/deploy@main
         env:
-          FOOBAR_DIGEST: ${{ steps.push.outputs.digest }}
+          SAMPLE_DIGEST: ${{ steps.push.outputs.digest }}
         with:
-          deploy_pr_preview: "true"
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
 ```
 
-### Implementing Preview Apps
+### Launch a preview app per pull request
 
 With the following 2 actions, you can implement a "Preview Apps" feature, that provide a per-PR app to check if the deployment **would** work. If the deployment succeeds, a comment is posted with the live URL of the app. If the deployment fails, a link to the respective action run is posted alongside the build and deployment logs for quick debugging.
 
