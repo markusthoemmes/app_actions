@@ -18,7 +18,7 @@ Deploy an app from source (including the configuration) on commit, while allowin
 - `app_name`: Name of the app to pull the spec from. The app must already exist. If an app name is given, a potential in-repository app spec is ignored.
 - `print_build_logs`: Print build logs. Defaults to `false`.
 - `print_deploy_logs`: Print deploy logs. Defaults to `false`.
-- `deploy_pr_preview`: Deploy the app as a PR preview. The app name will be derived from the PR, the app spec will be mangled to exclude conflicting configuration like domains and alerts and all Github references to the current repository will be updated to point to the PR's branch. Defaults to `false`.
+- `deploy_pr_preview`: Deploy the app as a PR preview. The app name will be derived from the PR, the app spec will be modified to exclude conflicting configuration like domains and alerts and all Github references to the current repository will be updated to point to the PR's branch. Defaults to `false`.
 
 #### Outputs
 
@@ -191,11 +191,11 @@ jobs:
 
 It is strongly suggested to use image digests to identify a specific image like in the example above. If that is not possible, it is strongly suggested to use a unique and descriptive tag for the respective image (not `latest`).
 
-## Upgrade from `app_action`
+## Upgrade from v1.x
 
-The old `app_action` is no longer under development. To upgrade, references need to be switched from `digitalocean/app_action` to `digitalocean/app_actions/deploy`.
+The v1 branch of this action is no longer under active development.
 
-The new action does not support the `images` input from the old action. For in-repository app specs, it's suggested to use env-var-substitution as in the example above. If the spec of an existing app should be updated via the backwards-compatible `app_name` input, the `IMAGE_DIGEST_$component-name`/`IMAGE_TAG_$component-name` environment variables can be used to change the respective fields of the image reference.
+The new deploy action does not support the `images` input from the old action. For in-repository app specs, it's suggested to use env-var-substitution as in the example above. If the spec of an existing app should be updated via the backwards-compatible `app_name` input, the `IMAGE_DIGEST_$component-name`/`IMAGE_TAG_$component-name` environment variables can be used to change the respective fields of the image reference.
 
 ## Resources to know more about DigitalOcean App Platform App Spec
 
